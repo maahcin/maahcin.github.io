@@ -1,0 +1,54 @@
+[
+  {
+    "question": "Jaka jest stolica Polski?",
+    "answers": { "A": "Kraków", "B": "Warszawa", "C": "Gdańsk", "D": "Wrocław" },
+    "correct": "B"
+  },
+  {
+    "question": "Ile nóg ma pająk?",
+    "answers": { "A": "6", "B": "8", "C": "", "D": "10", "E": "" },
+    "correct": "B"
+  },
+  {
+    "question": "Która rzeka jest najdłuższa w Polsce?",
+    "answers": { "A": "Odra", "B": "Warta", "C": "Wisła", "D": "Bug" },
+    "correct": "C"
+  },
+  {
+    "question": "Jaki symbol chemiczny ma złoto?",
+    "answers": { "A": "Ag", "B": "Au", "C": "Fe", "D": "", "E": "Cu" },
+    "correct": "B"
+  },
+  {
+    "question": "W którym roku Polska wstąpiła do Unii Europejskiej?",
+    "answers": { "A": "1999", "B": "2001", "C": "2004", "D": "2007" },
+    "correct": "C"
+  },
+  {
+    "question": "Który z tych krajów NIE leży w Europie?",
+    "answers": {
+      "A": "Norwegia",
+      "B": "Portugalia",
+      "C": "Egipt",
+      "D": "Grecja",
+      "E": "Szwajcaria",
+      "F": "Irlandia",
+      "G": "Czechy",
+      "H": "Austria",
+      "I": "Węgry",
+      "J": "Słowacja",
+      "K": "Litwa"
+    },
+    "correct": "C"
+  },
+  {
+    "question": "Pod którym miastem mieszkał Smok Wawelski?",
+    "answers": { "A": "Warszawa", "B": "Kraków", "C": "Poznań" },
+    "correct": "B"
+  },
+  {
+    "question": "Ile to jest 7 × 8?",
+    "answers": { "A": "54", "B": "", "C": "56", "D": "58", "E": "64" },
+    "correct": "C"
+  }
+]

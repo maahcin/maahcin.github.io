@@ -138,13 +138,15 @@ h1,h2{margin:0;font-weight:700}
   <header class="top">
     <h1>🎲 Quizownia – baza pytań</h1>
     <div class="actions">
-      <button id="btn-import">Importuj</button>
+      <button id="btn-load">Wczytaj questions.json</button>
+      <button id="btn-import">Importuj plik</button>
       <button id="btn-export">Eksportuj</button>
+      <button id="btn-results">Historia wyników (0)</button>
       <input type="file" id="file" accept=".json,application/json" hidden>
     </div>
   </header>
   <main class="wrap">
-    <p class="muted">Pytania zapisują się automatycznie w tej przeglądarce. Zaznacz kółkiem poprawną odpowiedź. Maksymalnie 11 odpowiedzi na pytanie.</p>
+    <p class="muted">Pytania zapisują się automatycznie w tej przeglądarce albo możesz wczytać je z pliku questions.json leżącego obok index.html. Odpowiedzi mają klucze A–K, a puste są w grze ukryte. Zaznacz kółkiem poprawną.</p>
     <div id="qlist"></div>
   </main>
   <div class="bar">
@@ -214,14 +216,35 @@ if (joinId) initPlayer(joinId); else initHost();
    ADMIN: edytor pytań
    ===================================================================== */
 function initHost(){
-  const newQ = () => ({ text:'', answers:['',''], correct:0 });
+  const newQ = () => ({ question:'', answers:{ A:'', B:'' }, correct:'A' });
+  const sortedKeys = q => Object.keys(q.answers).sort();
+  /* ujednolica pytanie: obsługuje nowy format (klucze A–K) i stary (tablica) */
+  function normQ(q, dropEmpty){
+    const answers = {}, src = q && q.answers;
+    if (Array.isArray(src)) src.slice(0,11).forEach((t,i) => { answers[L[i]] = String(t ?? ''); });
+    else if (src && typeof src === 'object') Object.keys(src).forEach(k => {
+      const K = k.trim().toUpperCase(); if (K.length === 1 && L.includes(K)) answers[K] = String(src[k] ?? '');
+    });
+    if (dropEmpty) Object.keys(answers).forEach(k => { if (!answers[k].trim()) delete answers[k]; });
+    for (const k of L){ if (Object.keys(answers).length >= 2) break; if (!(k in answers)) answers[k] = ''; }
+    let c = q && q.correct;
+    if (Number.isInteger(c)) c = Object.keys(answers).sort()[c];
+    c = typeof c === 'string' ? c.trim().toUpperCase() : '';
+    if (!(c in answers)) c = Object.keys(answers).sort()[0];
+    return { question:String((q && (q.question ?? q.text)) ?? ''), answers, correct:c };
+  }
+  const isBlank = qs => qs.length === 1 && !qs[0].question.trim() && Object.values(qs[0].answers).every(v => !v.trim());
+
   let questions = store.get('quiz_questions', null);
-  if (!Array.isArray(questions) || !questions.length) questions = [newQ()];
+  questions = Array.isArray(questions) ? questions.map(q => normQ(q, false)) : [];
+  if (!questions.length) questions = [newQ()];
   const save = () => store.set('quiz_questions', questions);
-  const msg = t => { $('#edit-msg').textContent = t || ''; };
+  const msg = (t, ok) => { const el = $('#edit-msg'); el.textContent = t || ''; el.style.color = ok ? 'var(--ok)' : ''; };
 
   function renderEditor(){
-    $('#qlist').innerHTML = questions.map((q,qi) => `
+    $('#qlist').innerHTML = questions.map((q,qi) => {
+      const keys = sortedKeys(q);
+      return `
       <section class="card" data-qi="${qi}">
         <div class="card-h">
           <span class="badge">${qi+1}</span>
@@ -231,30 +254,30 @@ function initHost(){
             <button data-act="del-q" class="danger" title="Usuń pytanie">Usuń</button>
           </div>
         </div>
-        <textarea data-f="text" rows="2" placeholder="Treść pytania">${esc(q.text)}</textarea>
+        <textarea data-f="text" rows="2" placeholder="Treść pytania">${esc(q.question)}</textarea>
         <div>
-          ${q.answers.map((a,ai) => `
+          ${keys.map(k => `
             <div class="arow">
-              <input type="radio" name="c${qi}" data-f="correct" data-ai="${ai}" ${q.correct===ai?'checked':''} title="Poprawna odpowiedź" aria-label="Poprawna odpowiedź ${L[ai]}">
-              <span class="dot" style="background:${col(ai)}">${L[ai]}</span>
-              <input type="text" data-f="ans" data-ai="${ai}" value="${esc(a)}" placeholder="Odpowiedź ${L[ai]}">
-              <button data-act="del-a" data-ai="${ai}" ${q.answers.length<=2?'disabled':''} title="Usuń odpowiedź">✕</button>
+              <input type="radio" name="c${qi}" data-f="correct" data-k="${k}" ${q.correct===k?'checked':''} title="Poprawna odpowiedź" aria-label="Poprawna odpowiedź ${k}">
+              <span class="dot" style="background:${col(L.indexOf(k))}">${k}</span>
+              <input type="text" data-f="ans" data-k="${k}" value="${esc(q.answers[k])}" placeholder="Odpowiedź ${k} (puste = ukryta)">
+              <button data-act="del-a" data-k="${k}" ${keys.length<=2?'disabled':''} title="Usuń odpowiedź">✕</button>
             </div>`).join('')}
         </div>
-        <button data-act="add-a" class="hint" ${q.answers.length>=11?'disabled':''}>+ Odpowiedź (${q.answers.length}/11)</button>
-      </section>`).join('') || '<p class="empty muted">Brak pytań. Dodaj pierwsze.</p>';
+        <button data-act="add-a" class="hint" ${keys.length>=11?'disabled':''}>+ Odpowiedź (${keys.length}/11)</button>
+      </section>`; }).join('') || '<p class="empty muted">Brak pytań. Dodaj pierwsze.</p>';
   }
 
   const qOf = el => questions[+el.closest('[data-qi]').dataset.qi];
   $('#qlist').addEventListener('input', e => {
     const f = e.target.dataset.f; if (!f) return;
     const q = qOf(e.target);
-    if (f === 'text') q.text = e.target.value;
-    if (f === 'ans') q.answers[+e.target.dataset.ai] = e.target.value;
+    if (f === 'text') q.question = e.target.value;
+    if (f === 'ans') q.answers[e.target.dataset.k] = e.target.value;
     save(); msg('');
   });
   $('#qlist').addEventListener('change', e => {
-    if (e.target.dataset.f === 'correct'){ qOf(e.target).correct = +e.target.dataset.ai; save(); }
+    if (e.target.dataset.f === 'correct'){ qOf(e.target).correct = e.target.dataset.k; save(); }
   });
   $('#qlist').addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -262,10 +285,10 @@ function initHost(){
     if (act === 'up' && qi > 0) [questions[qi-1], questions[qi]] = [questions[qi], questions[qi-1]];
     if (act === 'down' && qi < questions.length-1) [questions[qi+1], questions[qi]] = [questions[qi], questions[qi+1]];
     if (act === 'del-q'){ if (!confirm(`Usunąć pytanie ${qi+1}?`)) return; questions.splice(qi,1); }
-    if (act === 'add-a' && q.answers.length < 11) q.answers.push('');
-    if (act === 'del-a' && q.answers.length > 2){
-      const ai = +b.dataset.ai; q.answers.splice(ai,1);
-      if (ai < q.correct) q.correct--; else if (ai === q.correct) q.correct = 0;
+    if (act === 'add-a'){ const free = [...L].find(k => !(k in q.answers)); if (free) q.answers[free] = ''; }
+    if (act === 'del-a' && Object.keys(q.answers).length > 2){
+      delete q.answers[b.dataset.k];
+      if (!(q.correct in q.answers)) q.correct = sortedKeys(q)[0];
     }
     save(); renderEditor();
   });
@@ -277,33 +300,55 @@ function initHost(){
   };
   $('#clear-q').onclick = () => { if (confirm('Usunąć wszystkie pytania?')){ questions=[newQ()]; save(); renderEditor(); } };
 
-  $('#btn-export').onclick = () => {
-    const blob = new Blob([JSON.stringify(questions,null,2)], {type:'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pytania.json'; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
+  const pad = n => String(n).padStart(2,'0');
+  const stamp = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  function downloadJSON(name, data){
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  }
+  const exportList = () => questions.map(q => {
+    const answers = {}; sortedKeys(q).forEach(k => { if (q.answers[k].trim()) answers[k] = q.answers[k].trim(); });
+    return { question:q.question.trim(), answers, correct:q.correct };
+  });
+  $('#btn-export').onclick = () => downloadJSON('questions.json', exportList());
+
+  const parseList = data => { const list = Array.isArray(data) ? data : data && data.questions; if (!Array.isArray(list) || !list.length) throw new Error('format'); return list.map(q => normQ(q, true)); };
+
+  async function loadFromServer(auto){
+    try{
+      const r = await fetch('questions.json', { cache:'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const clean = parseList(await r.json());
+      if (!auto && !isBlank(questions) && !confirm(`Znaleziono ${clean.length} pytań w questions.json. Zastąpić obecną bazę?`)) return;
+      questions = clean; save(); renderEditor();
+      msg(`Wczytano ${clean.length} pytań z questions.json.`, true);
+    }catch(err){
+      if (!auto) msg('Nie udało się wczytać questions.json. Plik musi leżeć obok index.html na serwerze (nie działa z file://) i mieć poprawny format.');
+    }
+  }
+  $('#btn-load').onclick = () => loadFromServer(false);
+
   $('#btn-import').onclick = () => $('#file').click();
   $('#file').onchange = async e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
     try{
-      const data = JSON.parse(await f.text());
-      if (!Array.isArray(data)) throw 0;
-      const clean = data.map(q => {
-        const answers = (Array.isArray(q.answers) ? q.answers : []).slice(0,11).map(String);
-        while (answers.length < 2) answers.push('');
-        const c = Number.isInteger(q.correct) && q.correct >= 0 && q.correct < answers.length ? q.correct : 0;
-        return { text:String(q.text||''), answers, correct:c };
-      });
-      if (!clean.length) throw 0;
-      if (confirm(`Zaimportowano ${clean.length} pytań. Zastąpić obecną bazę?`)){ questions = clean; save(); renderEditor(); }
-    }catch{ msg('Nie udało się wczytać pliku – to nie jest poprawny plik z pytaniami.'); }
+      const clean = parseList(JSON.parse(await f.text()));
+      if (confirm(`Wczytano ${clean.length} pytań z pliku. Zastąpić obecną bazę?`)){ questions = clean; save(); renderEditor(); msg(`Zaimportowano ${clean.length} pytań.`, true); }
+    }catch{ msg('Nie udało się wczytać pliku. To nie jest poprawny plik z pytaniami.'); }
   };
 
-  /* przygotowanie quizu: usuwa puste odpowiedzi i przelicza indeks poprawnej */
+  /* historia wyników */
+  const history = () => { const h = store.get('quiz_results', []); return Array.isArray(h) ? h : []; };
+  function updateResBtn(){ const n = history().length; $('#btn-results').textContent = `Historia wyników (${n})`; $('#btn-results').disabled = !n; }
+  $('#btn-results').onclick = () => downloadJSON('wyniki_historia.json', history());
+
+  /* przygotowanie quizu: pomija puste odpowiedzi, zachowuje klucze A–K */
   function buildQ(q){
-    const text = q.text.trim(); if (!text) return null;
-    const answers = []; let correct = -1;
-    q.answers.forEach((a,i) => { const t = a.trim(); if (!t) return; if (i === q.correct) correct = answers.length; answers.push(t); });
+    const text = q.question.trim(); if (!text) return null;
+    const answers = sortedKeys(q).map(k => ({ k, t:q.answers[k].trim() })).filter(a => a.t);
+    const correct = answers.findIndex(a => a.k === q.correct);
     if (answers.length < 2 || correct < 0) return null;
     return { text, answers, correct };
   }
@@ -317,7 +362,9 @@ function initHost(){
   };
 
   renderEditor();
+  updateResBtn();
   show('v-edit');
+  if (isBlank(questions)) loadFromServer(true);
 
   /* =====================================================================
      ADMIN: gra
@@ -328,7 +375,7 @@ function initHost(){
   const send = (p,m) => { if (p.conn && p.conn.open){ try{ p.conn.send(m); }catch{} } };
 
   function startGame(quiz){
-    G = { quiz, players:new Map(), state:'lobby', qi:0, answers:new Map(), peer:null, id:null };
+    G = { quiz, players:new Map(), state:'lobby', qi:0, answers:new Map(), peer:null, id:null, saved:false, lastResult:null };
     show('v-game'); showG('g-lobby'); renderLobby(); setStatus('łączenie z serwerem…');
     $('#qr').innerHTML = ''; $('#join-url').textContent = '';
     openPeer(store.get('quiz_host_id', null) || 'quiz-' + rid(6), true);
@@ -401,7 +448,7 @@ function initHost(){
   const qMsg = p => { const q = G.quiz[G.qi]; return { t:'q', n:G.qi+1, total:G.quiz.length, text:q.text, answers:q.answers, picked:G.answers.has(p.key)?G.answers.get(p.key):null, score:p.score }; };
   const rMsg = p => {
     const q = G.quiz[G.qi], picked = G.answers.has(p.key) ? G.answers.get(p.key) : null, b = board();
-    return { t:'r', correctText:q.answers[q.correct], picked, pickedText:picked!=null?q.answers[picked]:null,
+    return { t:'r', correctKey:q.answers[q.correct].k, correctText:q.answers[q.correct].t, picked, pickedText:picked!=null?q.answers[picked].t:null,
       ok:picked === q.correct, score:p.score, rank:b.find(x => x.key === p.key).rank, count:b.length };
   };
   const endMsg = p => { const b = board(); const me = b.find(x => x.key === p.key);
@@ -424,20 +471,35 @@ function initHost(){
   function next(){
     if (G.state !== 'reveal') return;
     if (G.qi < G.quiz.length - 1){ G.qi++; startQ(); }
-    else { G.state = 'end'; broadcast(endMsg); renderHost(); }
+    else { G.state = 'end'; saveResults(); broadcast(endMsg); renderHost(); }
   }
   function resetGame(){
     if (!confirm('Wyczyścić klasyfikację i wrócić do poczekalni? Gracze zostaną połączeni.')) return;
     [...G.players.entries()].forEach(([k,p]) => { if (!p.conn) G.players.delete(k); else p.score = 0; });
-    G.state = 'lobby'; G.qi = 0; G.answers = new Map();
+    G.state = 'lobby'; G.qi = 0; G.answers = new Map(); G.saved = false;
     broadcast(p => ({ t:'lobby', score:0 })); renderHost();
   }
   function stopGame(){
     if (!confirm('Zakończyć grę i wrócić do edycji pytań?')) return;
     try{ G.peer.destroy(); }catch{}
-    G = null; show('v-edit');
+    G = null; updateResBtn(); show('v-edit');
   }
 
+  /* zapis wyników po zakończeniu gry: plik JSON + historia w przeglądarce */
+  function saveResults(){
+    if (G.saved) return; G.saved = true;
+    const d = new Date();
+    const rec = {
+      datetime: d.toISOString(),
+      datetimeLocal: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
+      questionsCount: G.quiz.length,
+      maxScore: G.quiz.length,
+      players: board().map(b => ({ place:b.rank, nick:b.nick, score:b.score }))
+    };
+    G.lastResult = { name:`wyniki_${stamp(d)}.json`, rec };
+    const h = history(); h.push(rec); store.set('quiz_results', h); updateResBtn();
+    downloadJSON(G.lastResult.name, rec);
+  }
   function showG(id){ ['g-lobby','g-q','g-end'].forEach(x => $('#'+x).classList.toggle('hidden', x !== id)); }
   function renderHost(){
     if (!G) return;
@@ -464,7 +526,7 @@ function initHost(){
       <span class="pill">${rev ? 'Odpowiedzi graczy' : `Odpowiedziało ${answered} z ${c.length}`}</span></div>
       <h2 class="bigq">${esc(q.text)}</h2>
       <div class="agrid">${q.answers.map((a,i) => `
-        <div class="ans ${rev ? (i===q.correct?'right':'wrong') : ''}" style="--c:${col(i)}"><b>${L[i]}</b><span>${esc(a)}</span>${rev?`<em>${counts[i]}</em>`:''}</div>`).join('')}</div>`;
+        <div class="ans ${rev ? (i===q.correct?'right':'wrong') : ''}" style="--c:${col(L.indexOf(a.k))}"><b>${a.k}</b><span>${esc(a.t)}</span>${rev?`<em>${counts[i]}</em>`:''}</div>`).join('')}</div>`;
     if (!rev && waiting.length) html += `<p class="muted waiting">Czekamy na: ${waiting.map(p => esc(p.nick)).join(', ')}</p>`;
     if (rev){
       html += `<ol class="board">${board().slice(0,5).map(b => `<li class="${b.rank===1?'top1':''}"><span class="r">${medal(b.rank)}</span><span class="n">${esc(b.nick)}</span><span class="s">${b.score} pkt</span></li>`).join('')}</ol>`;
@@ -479,13 +541,14 @@ function initHost(){
       <h2 class="title-xl">🏆 Klasyfikacja końcowa</h2>
       <ol class="board">${board().map(b => `<li class="${b.rank===1?'top1':b.rank<=3?'top2':''}"><span class="r">${medal(b.rank)}</span><span class="n">${esc(b.nick)}</span><span class="s">${b.score} / ${G.quiz.length}</span></li>`).join('')}</ol>
       <div class="foot" style="justify-content:center">
+        <button data-act="dl">Pobierz wyniki (JSON)</button>
         <button class="primary big" data-act="reset">Wyczyść klasyfikację i zagraj od nowa</button>
       </div>`;
   }
 
   $('#v-game').addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || !G) return;
-    ({ go:() => { if (connected().length){ G.qi = 0; startQ(); } }, reveal, next, reset:resetGame, stop:stopGame }[b.dataset.act] || (() => {}))();
+    ({ go:() => { if (connected().length){ G.qi = 0; startQ(); } }, reveal, next, reset:resetGame, stop:stopGame, dl:() => { if (G.lastResult) downloadJSON(G.lastResult.name, G.lastResult.rec); } }[b.dataset.act] || (() => {}))();
   });
   window.addEventListener('beforeunload', e => { if (G){ e.preventDefault(); e.returnValue = ''; } });
 }
@@ -571,8 +634,8 @@ function initPlayer(hostId){
       <div class="qhead" style="margin:0"><span class="pill">Pytanie ${d.n} z ${d.total}</span><span class="pill">⭐ ${d.score}</span></div>
       <h2 class="pq">${esc(d.text)}</h2>
       <div class="plist">${d.answers.map((a,i) => `
-        <button class="pans ${pk==null?'':pk===i?'sel':'dim'}" style="--c:${col(i)}" data-act="pick" data-i="${i}" ${pk!=null?'disabled':''}>
-          <b>${L[i]}</b><span>${esc(a)}</span></button>`).join('')}</div>
+        <button class="pans ${pk==null?'':pk===i?'sel':'dim'}" style="--c:${col(L.indexOf(a.k))}" data-act="pick" data-i="${i}" ${pk!=null?'disabled':''}>
+          <b>${esc(a.k)}</b><span>${esc(a.t)}</span></button>`).join('')}</div>
       ${pk!=null ? '<p class="center muted">Odpowiedź wysłana. Czekamy na resztę…</p>' : ''}`);
   }
   function renderR(d){
@@ -580,7 +643,7 @@ function initPlayer(hostId){
     setP(`
       <div class="verdict">${none ? '⏱️' : d.ok ? '✅' : '❌'}</div>
       <h2 class="res-title">${none ? 'Brak odpowiedzi' : d.ok ? 'Dobrze! +1 punkt' : 'Niestety nie'}</h2>
-      ${d.ok ? '' : `<div class="stat"><div class="muted small">Poprawna odpowiedź</div><div style="font-size:1.3rem;font-weight:600">${esc(d.correctText)}</div></div>`}
+      ${d.ok ? '' : `<div class="stat"><div class="muted small">Poprawna odpowiedź</div><div style="font-size:1.3rem;font-weight:600">${esc(d.correctKey)}. ${esc(d.correctText)}</div></div>`}
       <div class="stat">Masz <b>${d.score}</b> pkt · miejsce <b>${d.rank}</b> z ${d.count}</div>
       <p class="center muted">Czekaj na następne pytanie…</p>`);
   }
