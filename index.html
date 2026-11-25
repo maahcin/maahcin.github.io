@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quizownia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1b1038; --bg2:#2a1a55; --card:#2f1f60; --line:#46317f;
+  --text:#f6f2ff; --muted:#a99bd6; --accent:#ffd23f; --accent-ink:#2b1a00;
+  --ok:#2fd072; --bad:#ff5470;
+  --r:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  font-family:'Fredoka',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:radial-gradient(1200px 700px at 80% -10%,#3b2380 0,transparent 60%),var(--bg);
+  background-attachment:fixed;
+  color:var(--text);font-size:17px;line-height:1.35;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+.hidden{display:none!important}
+button,input,textarea{font:inherit;color:inherit}
+button{
+  cursor:pointer;border:2px solid var(--line);background:var(--bg2);border-radius:12px;
+  padding:.5em .95em;font-weight:500;transition:transform .08s,background .15s;
+}
+button:hover:not(:disabled){background:var(--card)}
+button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+button.primary:hover:not(:disabled){background:#ffdc66}
+button.big{font-size:1.2em;padding:.65em 1.4em;border-radius:16px}
+button.danger{color:var(--bad)}
+button.ghost{background:transparent}
+input[type=text],textarea{
+  width:100%;background:#1f1344;border:2px solid var(--line);border-radius:12px;padding:.55em .75em;
+}
+textarea{resize:vertical;min-height:3.2em}
+h1,h2{margin:0;font-weight:700}
+.muted{color:var(--muted)}
+.small{font-size:.85em}
+.center{text-align:center}
+.err{color:var(--bad);min-height:1.4em;margin:.4em 0 0}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.9rem 1.2rem;flex-wrap:wrap}
+.top h1{font-size:1.5rem;letter-spacing:.01em}
+.actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.wrap{max-width:820px;margin:0 auto;padding:0 1.2rem 7rem}
+.wrap.wide{max-width:1100px}
+.pill{display:inline-block;background:var(--bg2);border:2px solid var(--line);border-radius:99px;padding:.15em .8em;font-weight:500;font-size:.9em}
+
+/* edytor */
+.card{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:1rem;margin:1rem 0}
+.card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+.badge{background:var(--accent);color:var(--accent-ink);font-weight:700;border-radius:10px;min-width:2.1em;text-align:center;padding:.15em .5em}
+.tools{display:flex;gap:.35rem}
+.tools button{padding:.25em .7em}
+.arow{display:flex;align-items:center;gap:.5rem;margin:.4rem 0}
+.arow input[type=radio]{width:1.35rem;height:1.35rem;accent-color:var(--ok);flex:none;cursor:pointer}
+.dot{flex:none;width:2.1rem;height:2.1rem;border-radius:9px;display:grid;place-items:center;font-weight:700;color:#fff}
+.arow button{padding:.3em .65em}
+.hint{margin:.6rem 0 0}
+.empty{text-align:center;padding:2rem 0}
+.bar{
+  position:fixed;left:0;right:0;bottom:0;padding:.8rem 1.2rem calc(.8rem + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,var(--bg) 35%);display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;
+}
+
+/* ekran hosta */
+.lobby-grid{display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:start;margin-top:1rem}
+@media(max-width:760px){.lobby-grid{grid-template-columns:1fr}}
+.qrbox{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:1rem;text-align:center}
+#qr{background:#fff;padding:14px;border-radius:12px;display:inline-block;line-height:0}
+#join-url{display:block;word-break:break-all;font-size:.8em;max-width:320px;margin:.4rem auto 0;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;margin:.8rem 0 1.4rem}
+.chip{background:var(--bg2);border:2px solid var(--line);border-radius:99px;padding:.25em .9em;font-weight:500}
+.chip.off{opacity:.45;text-decoration:line-through}
+.qhead{display:flex;gap:.5rem;justify-content:space-between;margin:.8rem 0}
+.bigq{font-size:clamp(1.5rem,4vw,2.6rem);line-height:1.15;margin:.6rem 0 1.2rem}
+.agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:.6rem}
+.ans{
+  display:flex;align-items:center;gap:.8rem;background:var(--c);border-radius:14px;padding:.7rem .9rem;
+  font-size:1.2rem;font-weight:500;border:3px solid transparent;
+}
+.ans b{background:rgba(0,0,0,.28);border-radius:9px;min-width:2rem;height:2rem;display:grid;place-items:center;flex:none}
+.ans span{flex:1}
+.ans em{font-style:normal;background:rgba(0,0,0,.3);border-radius:99px;padding:0 .6em;font-size:.9em}
+.ans.wrong{opacity:.28}
+.ans.right{border-color:#fff;box-shadow:0 0 0 4px var(--ok);animation:pop .45s ease-out}
+.ans.right::after{content:'✔';font-size:1.5rem}
+.foot{margin-top:1.4rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.waiting{margin-top:1rem}
+.board{list-style:none;padding:0;margin:1rem 0;display:grid;gap:.5rem}
+.board li{display:flex;align-items:center;gap:.8rem;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:.6rem 1rem;font-size:1.15rem}
+.board li .r{width:2.4rem;text-align:center;font-weight:700;font-size:1.3em}
+.board li .n{flex:1;overflow:hidden;text-overflow:ellipsis}
+.board li .s{font-weight:700;color:var(--accent)}
+.board li.top1{background:linear-gradient(90deg,#6b4a00,var(--card));border-color:var(--accent);font-size:1.5rem}
+.board li.top2{font-size:1.3rem}
+.board li.me{border-color:var(--accent)}
+.title-xl{font-size:clamp(2rem,6vw,3.4rem);text-align:center;margin:1rem 0}
+
+/* gracz */
+#v-player{max-width:560px;margin:0 auto;padding:1.2rem}
+#p-body{display:flex;flex-direction:column;gap:.9rem;min-height:70vh;justify-content:center}
+.logo{font-size:2.2rem;text-align:center}
+.pq{font-size:1.5rem;line-height:1.2;margin:.2rem 0}
+.plist{display:grid;gap:.55rem}
+.pans{
+  display:flex;align-items:center;gap:.8rem;text-align:left;background:var(--c);border:3px solid transparent;
+  border-radius:14px;padding:.8rem .9rem;font-size:1.1rem;width:100%;color:#fff;
+}
+.pans:hover:not(:disabled){background:var(--c);filter:brightness(1.12)}
+.pans b{background:rgba(0,0,0,.28);border-radius:9px;min-width:2rem;height:2rem;display:grid;place-items:center;flex:none}
+.pans.sel{border-color:#fff;box-shadow:0 0 0 3px var(--accent)}
+.pans.dim{opacity:.35}
+.pans:disabled{opacity:1}
+.pans.dim:disabled{opacity:.35}
+.verdict{font-size:4.5rem;text-align:center;animation:pop .45s ease-out}
+.res-title{font-size:2rem;text-align:center}
+.stat{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:.8rem 1rem;text-align:center}
+.spin{width:44px;height:44px;border-radius:50%;border:5px solid var(--line);border-top-color:var(--accent);margin:0 auto;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ EDYTOR PYTAŃ (admin) ============ -->
+<div id="v-edit" class="view">
+  <header class="top">
+    <h1>🎲 Quizownia – baza pytań</h1>
+    <div class="actions">
+      <button id="btn-import">Importuj</button>
+      <button id="btn-export">Eksportuj</button>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+  <main class="wrap">
+    <p class="muted">Pytania zapisują się automatycznie w tej przeglądarce. Zaznacz kółkiem poprawną odpowiedź. Maksymalnie 11 odpowiedzi na pytanie.</p>
+    <div id="qlist"></div>
+  </main>
+  <div class="bar">
+    <button id="add-q">+ Dodaj pytanie</button>
+    <button id="clear-q" class="ghost danger">Usuń wszystkie</button>
+    <button id="start" class="primary big">▶ Uruchom grę</button>
+  </div>
+  <p id="edit-msg" class="err center" style="position:fixed;bottom:5.2rem;left:0;right:0;margin:0"></p>
+</div>
+
+<!-- ============ EKRAN GRY (admin) ============ -->
+<div id="v-game" class="view hidden">
+  <header class="top">
+    <h1>🎲 Quizownia</h1>
+    <div class="actions">
+      <span id="conn-status" class="pill">łączenie…</span>
+      <button data-act="stop">Zakończ grę</button>
+    </div>
+  </header>
+  <main class="wrap wide">
+    <section id="g-lobby">
+      <div class="lobby-grid">
+        <div class="qrbox">
+          <div id="qr"></div>
+          <p class="muted small" style="margin:.7rem 0 0">Zeskanuj kod telefonem albo wpisz adres:</p>
+          <code id="join-url"></code>
+        </div>
+        <div>
+          <h2>Gracze <span id="pcount" class="muted"></span></h2>
+          <div id="plist" class="chips"></div>
+          <button id="go" class="primary big" data-act="go">▶ Start gry</button>
+          <p class="muted small" id="go-hint"></p>
+        </div>
+      </div>
+    </section>
+    <section id="g-q" class="hidden"></section>
+    <section id="g-end" class="hidden"></section>
+  </main>
+</div>
+
+<!-- ============ EKRAN GRACZA ============ -->
+<div id="v-player" class="view hidden"><div id="p-body"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+'use strict';
+/* ---------- narzędzia ---------- */
+const $ = s => document.querySelector(s);
+const L = 'ABCDEFGHIJK';
+const COLORS = ['#e21b3c','#1368ce','#c78a00','#26890c','#8a2be2','#e8590c','#0b8a8a','#c2255c','#556270','#5c940d','#7048e8'];
+const col = i => COLORS[i % COLORS.length];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid = n => { const a='abcdefghjkmnpqrstuvwxyz23456789'; let s=''; for (const x of crypto.getRandomValues(new Uint8Array(n))) s += a[x % a.length]; return s; };
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch{ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} }
+};
+function show(id){ document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== id)); window.scrollTo(0,0); }
+const medal = r => r===1?'🥇':r===2?'🥈':r===3?'🥉':r;
+
+const params = new URLSearchParams(location.search);
+const joinId = params.get('join');
+if (joinId) initPlayer(joinId); else initHost();
+
+/* =====================================================================
+   ADMIN: edytor pytań
+   ===================================================================== */
+function initHost(){
+  const newQ = () => ({ text:'', answers:['',''], correct:0 });
+  let questions = store.get('quiz_questions', null);
+  if (!Array.isArray(questions) || !questions.length) questions = [newQ()];
+  const save = () => store.set('quiz_questions', questions);
+  const msg = t => { $('#edit-msg').textContent = t || ''; };
+
+  function renderEditor(){
+    $('#qlist').innerHTML = questions.map((q,qi) => `
+      <section class="card" data-qi="${qi}">
+        <div class="card-h">
+          <span class="badge">${qi+1}</span>
+          <div class="tools">
+            <button data-act="up" ${qi===0?'disabled':''} title="Przesuń wyżej">↑</button>
+            <button data-act="down" ${qi===questions.length-1?'disabled':''} title="Przesuń niżej">↓</button>
+            <button data-act="del-q" class="danger" title="Usuń pytanie">Usuń</button>
+          </div>
+        </div>
+        <textarea data-f="text" rows="2" placeholder="Treść pytania">${esc(q.text)}</textarea>
+        <div>
+          ${q.answers.map((a,ai) => `
+            <div class="arow">
+              <input type="radio" name="c${qi}" data-f="correct" data-ai="${ai}" ${q.correct===ai?'checked':''} title="Poprawna odpowiedź" aria-label="Poprawna odpowiedź ${L[ai]}">
+              <span class="dot" style="background:${col(ai)}">${L[ai]}</span>
+              <input type="text" data-f="ans" data-ai="${ai}" value="${esc(a)}" placeholder="Odpowiedź ${L[ai]}">
+              <button data-act="del-a" data-ai="${ai}" ${q.answers.length<=2?'disabled':''} title="Usuń odpowiedź">✕</button>
+            </div>`).join('')}
+        </div>
+        <button data-act="add-a" class="hint" ${q.answers.length>=11?'disabled':''}>+ Odpowiedź (${q.answers.length}/11)</button>
+      </section>`).join('') || '<p class="empty muted">Brak pytań. Dodaj pierwsze.</p>';
+  }
+
+  const qOf = el => questions[+el.closest('[data-qi]').dataset.qi];
+  $('#qlist').addEventListener('input', e => {
+    const f = e.target.dataset.f; if (!f) return;
+    const q = qOf(e.target);
+    if (f === 'text') q.text = e.target.value;
+    if (f === 'ans') q.answers[+e.target.dataset.ai] = e.target.value;
+    save(); msg('');
+  });
+  $('#qlist').addEventListener('change', e => {
+    if (e.target.dataset.f === 'correct'){ qOf(e.target).correct = +e.target.dataset.ai; save(); }
+  });
+  $('#qlist').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const qi = +b.closest('[data-qi]').dataset.qi, q = questions[qi], act = b.dataset.act;
+    if (act === 'up' && qi > 0) [questions[qi-1], questions[qi]] = [questions[qi], questions[qi-1]];
+    if (act === 'down' && qi < questions.length-1) [questions[qi+1], questions[qi]] = [questions[qi], questions[qi+1]];
+    if (act === 'del-q'){ if (!confirm(`Usunąć pytanie ${qi+1}?`)) return; questions.splice(qi,1); }
+    if (act === 'add-a' && q.answers.length < 11) q.answers.push('');
+    if (act === 'del-a' && q.answers.length > 2){
+      const ai = +b.dataset.ai; q.answers.splice(ai,1);
+      if (ai < q.correct) q.correct--; else if (ai === q.correct) q.correct = 0;
+    }
+    save(); renderEditor();
+  });
+
+  $('#add-q').onclick = () => {
+    questions.push(newQ()); save(); renderEditor();
+    const cards = document.querySelectorAll('.card'); cards[cards.length-1]?.scrollIntoView({behavior:'smooth',block:'center'});
+    cards[cards.length-1]?.querySelector('textarea').focus({preventScroll:true});
+  };
+  $('#clear-q').onclick = () => { if (confirm('Usunąć wszystkie pytania?')){ questions=[newQ()]; save(); renderEditor(); } };
+
+  $('#btn-export').onclick = () => {
+    const blob = new Blob([JSON.stringify(questions,null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pytania.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('#btn-import').onclick = () => $('#file').click();
+  $('#file').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try{
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data)) throw 0;
+      const clean = data.map(q => {
+        const answers = (Array.isArray(q.answers) ? q.answers : []).slice(0,11).map(String);
+        while (answers.length < 2) answers.push('');
+        const c = Number.isInteger(q.correct) && q.correct >= 0 && q.correct < answers.length ? q.correct : 0;
+        return { text:String(q.text||''), answers, correct:c };
+      });
+      if (!clean.length) throw 0;
+      if (confirm(`Zaimportowano ${clean.length} pytań. Zastąpić obecną bazę?`)){ questions = clean; save(); renderEditor(); }
+    }catch{ msg('Nie udało się wczytać pliku – to nie jest poprawny plik z pytaniami.'); }
+  };
+
+  /* przygotowanie quizu: usuwa puste odpowiedzi i przelicza indeks poprawnej */
+  function buildQ(q){
+    const text = q.text.trim(); if (!text) return null;
+    const answers = []; let correct = -1;
+    q.answers.forEach((a,i) => { const t = a.trim(); if (!t) return; if (i === q.correct) correct = answers.length; answers.push(t); });
+    if (answers.length < 2 || correct < 0) return null;
+    return { text, answers, correct };
+  }
+
+  $('#start').onclick = () => {
+    const quiz = [], bad = [];
+    questions.forEach((q,i) => { const r = buildQ(q); r ? quiz.push(r) : bad.push(i+1); });
+    if (bad.length) return msg(`Uzupełnij pytanie ${bad.join(', ')}: treść, min. 2 odpowiedzi i zaznaczona poprawna.`);
+    if (!quiz.length) return msg('Dodaj przynajmniej jedno pytanie.');
+    msg(''); startGame(quiz);
+  };
+
+  renderEditor();
+  show('v-edit');
+
+  /* =====================================================================
+     ADMIN: gra
+     ===================================================================== */
+  let G = null;
+  const setStatus = t => { $('#conn-status').textContent = t; };
+  const connected = () => [...G.players.values()].filter(p => p.conn && p.conn.open);
+  const send = (p,m) => { if (p.conn && p.conn.open){ try{ p.conn.send(m); }catch{} } };
+
+  function startGame(quiz){
+    G = { quiz, players:new Map(), state:'lobby', qi:0, answers:new Map(), peer:null, id:null };
+    show('v-game'); showG('g-lobby'); renderLobby(); setStatus('łączenie z serwerem…');
+    $('#qr').innerHTML = ''; $('#join-url').textContent = '';
+    openPeer(store.get('quiz_host_id', null) || 'quiz-' + rid(6), true);
+  }
+
+  function openPeer(id, retry){
+    const peer = new Peer(id); G.peer = peer;
+    peer.on('open', pid => {
+      G.id = pid; store.set('quiz_host_id', pid); setStatus('online');
+      const url = location.href.split(/[?#]/)[0] + '?join=' + pid;
+      $('#join-url').textContent = url;
+      $('#qr').innerHTML = '';
+      new QRCode($('#qr'), { text:url, width:280, height:280, correctLevel:QRCode.CorrectLevel.M });
+    });
+    peer.on('connection', onConn);
+    peer.on('disconnected', () => { setStatus('brak połączenia z serwerem – łączę…'); setTimeout(() => { try{ if (!peer.destroyed) peer.reconnect(); }catch{} }, 2000); });
+    peer.on('error', e => {
+      if (e.type === 'unavailable-id' && retry){ peer.destroy(); openPeer('quiz-' + rid(8), false); return; }
+      if (e.type === 'peer-unavailable') return;
+      setStatus('błąd połączenia (' + e.type + ')');
+    });
+  }
+
+  function onConn(conn){
+    conn.on('data', d => handleMsg(conn, d));
+    conn.on('close', () => handleClose(conn));
+    conn.on('error', () => handleClose(conn));
+  }
+
+  function handleMsg(conn, d){
+    if (!G || !d) return;
+    if (d.t === 'join'){
+      const nick = String(d.nick || '').trim().slice(0,20);
+      const reply = m => { try{ conn.send(m); }catch{} };
+      if (!nick) return reply({ t:'err', msg:'Wpisz nick.' });
+      const key = nick.toLowerCase();
+      let p = G.players.get(key);
+      if (p && p.conn && p.conn.open && p.conn !== conn){
+        if (p.token && p.token === d.token){ const old = p.conn; p.conn = null; try{ old.close(); }catch{} }
+        else return reply({ t:'err', msg:'Ten nick jest już zajęty. Wybierz inny.' });
+      }
+      if (!p){ p = { key, nick, score:0, conn:null, token:d.token }; G.players.set(key, p); }
+      p.conn = conn; conn.pkey = key;
+      reply({ t:'joined', nick:p.nick });
+      send(p, stateFor(p));
+      renderHost();
+    }
+    if (d.t === 'a'){
+      const p = G.players.get(conn.pkey);
+      if (!p || G.state !== 'question' || G.answers.has(p.key)) return;
+      const i = d.i, q = G.quiz[G.qi];
+      if (!Number.isInteger(i) || i < 0 || i >= q.answers.length) return;
+      G.answers.set(p.key, i);
+      renderHost(); checkAll();
+    }
+  }
+  function handleClose(conn){
+    if (!G) return;
+    const p = G.players.get(conn.pkey);
+    if (p && p.conn === conn) p.conn = null;
+    renderHost(); checkAll();
+  }
+
+  function board(){
+    const a = [...G.players.values()].map(p => ({ key:p.key, nick:p.nick, score:p.score }))
+      .sort((x,y) => y.score - x.score || x.nick.localeCompare(y.nick,'pl'));
+    let r = 0; a.forEach((x,i) => { if (i === 0 || x.score < a[i-1].score) r = i + 1; x.rank = r; });
+    return a;
+  }
+  const qMsg = p => { const q = G.quiz[G.qi]; return { t:'q', n:G.qi+1, total:G.quiz.length, text:q.text, answers:q.answers, picked:G.answers.has(p.key)?G.answers.get(p.key):null, score:p.score }; };
+  const rMsg = p => {
+    const q = G.quiz[G.qi], picked = G.answers.has(p.key) ? G.answers.get(p.key) : null, b = board();
+    return { t:'r', correctText:q.answers[q.correct], picked, pickedText:picked!=null?q.answers[picked]:null,
+      ok:picked === q.correct, score:p.score, rank:b.find(x => x.key === p.key).rank, count:b.length };
+  };
+  const endMsg = p => { const b = board(); const me = b.find(x => x.key === p.key);
+    return { t:'end', score:p.score, rank:me.rank, count:b.length, board:b.slice(0,10).map(({nick,score,rank}) => ({nick,score,rank})) }; };
+  const stateFor = p => G.state==='lobby' ? { t:'lobby', score:p.score } : G.state==='question' ? qMsg(p) : G.state==='reveal' ? rMsg(p) : endMsg(p);
+  const broadcast = fn => G.players.forEach(p => send(p, fn(p)));
+
+  function checkAll(){
+    if (!G || G.state !== 'question') return;
+    const c = connected();
+    if (c.length && c.every(p => G.answers.has(p.key))) reveal();
+  }
+  function startQ(){ G.state = 'question'; G.answers = new Map(); broadcast(qMsg); renderHost(); }
+  function reveal(){
+    if (G.state !== 'question') return;
+    const q = G.quiz[G.qi]; G.state = 'reveal';
+    G.players.forEach(p => { if (G.answers.get(p.key) === q.correct) p.score++; });
+    broadcast(rMsg); renderHost();
+  }
+  function next(){
+    if (G.state !== 'reveal') return;
+    if (G.qi < G.quiz.length - 1){ G.qi++; startQ(); }
+    else { G.state = 'end'; broadcast(endMsg); renderHost(); }
+  }
+  function resetGame(){
+    if (!confirm('Wyczyścić klasyfikację i wrócić do poczekalni? Gracze zostaną połączeni.')) return;
+    [...G.players.entries()].forEach(([k,p]) => { if (!p.conn) G.players.delete(k); else p.score = 0; });
+    G.state = 'lobby'; G.qi = 0; G.answers = new Map();
+    broadcast(p => ({ t:'lobby', score:0 })); renderHost();
+  }
+  function stopGame(){
+    if (!confirm('Zakończyć grę i wrócić do edycji pytań?')) return;
+    try{ G.peer.destroy(); }catch{}
+    G = null; show('v-edit');
+  }
+
+  function showG(id){ ['g-lobby','g-q','g-end'].forEach(x => $('#'+x).classList.toggle('hidden', x !== id)); }
+  function renderHost(){
+    if (!G) return;
+    if (G.state === 'lobby'){ showG('g-lobby'); renderLobby(); }
+    else if (G.state === 'end'){ showG('g-end'); renderEnd(); }
+    else { showG('g-q'); renderQ(); }
+  }
+  function renderLobby(){
+    const ps = [...G.players.values()], on = connected().length;
+    $('#pcount').textContent = `(${on})`;
+    $('#plist').innerHTML = ps.map(p => `<span class="chip ${p.conn?'':'off'}">${esc(p.nick)}${p.score?` · ${p.score} pkt`:''}</span>`).join('')
+      || '<p class="muted" style="margin:0">Czekamy na pierwszych graczy…</p>';
+    $('#go').disabled = !on;
+    $('#go-hint').textContent = on ? `${G.quiz.length} pytań w grze.` : 'Start będzie możliwy, gdy dołączy pierwszy gracz.';
+  }
+  function renderQ(){
+    const q = G.quiz[G.qi], rev = G.state === 'reveal', c = connected();
+    const answered = c.filter(p => G.answers.has(p.key)).length;
+    const waiting = c.filter(p => !G.answers.has(p.key));
+    const counts = q.answers.map(() => 0); G.answers.forEach(i => counts[i]++);
+    const last = G.qi === G.quiz.length - 1;
+    let html = `
+      <div class="qhead"><span class="pill">Pytanie ${G.qi+1} z ${G.quiz.length}</span>
+      <span class="pill">${rev ? 'Odpowiedzi graczy' : `Odpowiedziało ${answered} z ${c.length}`}</span></div>
+      <h2 class="bigq">${esc(q.text)}</h2>
+      <div class="agrid">${q.answers.map((a,i) => `
+        <div class="ans ${rev ? (i===q.correct?'right':'wrong') : ''}" style="--c:${col(i)}"><b>${L[i]}</b><span>${esc(a)}</span>${rev?`<em>${counts[i]}</em>`:''}</div>`).join('')}</div>`;
+    if (!rev && waiting.length) html += `<p class="muted waiting">Czekamy na: ${waiting.map(p => esc(p.nick)).join(', ')}</p>`;
+    if (rev){
+      html += `<ol class="board">${board().slice(0,5).map(b => `<li class="${b.rank===1?'top1':''}"><span class="r">${medal(b.rank)}</span><span class="n">${esc(b.nick)}</span><span class="s">${b.score} pkt</span></li>`).join('')}</ol>`;
+    }
+    html += `<div class="foot">${rev
+      ? `<button class="primary big" data-act="next">${last ? '🏆 Pokaż klasyfikację' : 'Dalej →'}</button>`
+      : `<button data-act="reveal">Pokaż odpowiedź teraz</button>`}</div>`;
+    $('#g-q').innerHTML = html;
+  }
+  function renderEnd(){
+    $('#g-end').innerHTML = `
+      <h2 class="title-xl">🏆 Klasyfikacja końcowa</h2>
+      <ol class="board">${board().map(b => `<li class="${b.rank===1?'top1':b.rank<=3?'top2':''}"><span class="r">${medal(b.rank)}</span><span class="n">${esc(b.nick)}</span><span class="s">${b.score} / ${G.quiz.length}</span></li>`).join('')}</ol>
+      <div class="foot" style="justify-content:center">
+        <button class="primary big" data-act="reset">Wyczyść klasyfikację i zagraj od nowa</button>
+      </div>`;
+  }
+
+  $('#v-game').addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || !G) return;
+    ({ go:() => { if (connected().length){ G.qi = 0; startQ(); } }, reveal, next, reset:resetGame, stop:stopGame }[b.dataset.act] || (() => {}))();
+  });
+  window.addEventListener('beforeunload', e => { if (G){ e.preventDefault(); e.returnValue = ''; } });
+}
+
+/* =====================================================================
+   GRACZ
+   ===================================================================== */
+function initPlayer(hostId){
+  show('v-player');
+  const body = $('#p-body');
+  let peer = null, conn = null, nick = '', joined = false, retryT = null, connT = null, cur = null;
+  const setP = html => { body.innerHTML = html; };
+  const token = (() => { let t = store.get('quiz_token', null); if (!t){ t = rid(16); store.set('quiz_token', t); } return t; })();
+
+  function renderJoin(err){
+    setP(`
+      <h1 class="logo">🎲 Quizownia</h1>
+      <p class="muted center" style="margin:0">Wpisz swój unikalny nick</p>
+      <input type="text" id="nick" maxlength="20" autocomplete="off" autocapitalize="words" placeholder="Twój nick">
+      <button class="primary big" data-act="join">Dołącz do gry</button>
+      <p class="err center">${esc(err || '')}</p>`);
+    $('#nick').value = store.get('quiz_nick', '') || '';
+  }
+  const renderLoading = t => setP(`<div class="spin"></div><p class="center muted">${esc(t)}</p>`);
+
+  function cleanup(){
+    clearTimeout(connT);
+    const c = conn, p = peer; conn = null; peer = null;
+    try{ c && c.close(); }catch{} try{ p && p.destroy(); }catch{}
+  }
+  function scheduleRetry(){
+    if (retryT) return;
+    renderLoading('Połączenie przerwane – łączę ponownie…');
+    retryT = setTimeout(() => { retryT = null; doJoin(); }, 3000);
+  }
+  function doJoin(){
+    cleanup();
+    peer = new Peer(); const myPeer = peer;
+    connT = setTimeout(() => {
+      if (peer !== myPeer || joined) return;
+      cleanup(); renderJoin('Nie udało się połączyć. Sprawdź, czy admin uruchomił grę, i spróbuj ponownie.');
+    }, 15000);
+    peer.on('open', () => {
+      if (peer !== myPeer) return;
+      const c = peer.connect(hostId, { reliable:true }); conn = c;
+      c.on('open', () => c.send({ t:'join', nick, token }));
+      c.on('data', onData);
+      c.on('close', () => { if (c !== conn) return; if (joined) scheduleRetry(); else renderJoin('Połączenie zostało zamknięte.'); });
+    });
+    peer.on('error', e => {
+      if (peer !== myPeer) return;
+      if (joined){ cleanup(); scheduleRetry(); return; }
+      cleanup();
+      renderJoin(e.type === 'peer-unavailable' ? 'Nie znaleziono gry. Poproś admina o nowy kod QR.' : 'Błąd połączenia (' + e.type + '). Spróbuj ponownie.');
+    });
+  }
+  function startJoin(){
+    const v = $('#nick').value.trim();
+    if (!v) return renderJoin('Wpisz nick.');
+    nick = v; joined = false; renderLoading('Łączenie z grą…'); doJoin();
+  }
+
+  function onData(d){
+    if (!d) return;
+    switch (d.t){
+      case 'joined': joined = true; clearTimeout(connT); store.set('quiz_nick', d.nick); nick = d.nick; renderWait({ score:0 }); break;
+      case 'err': joined = false; cleanup(); renderJoin(d.msg); break;
+      case 'lobby': renderWait(d); break;
+      case 'q': renderQ(d); break;
+      case 'r': renderR(d); break;
+      case 'end': renderEnd(d); break;
+    }
+  }
+
+  function renderWait(d){
+    setP(`<h1 class="logo">Jesteś w grze!</h1>
+      <div class="stat"><div class="muted small">Twój nick</div><div style="font-size:1.8rem;font-weight:700">${esc(nick)}</div></div>
+      <p class="center muted">Czekaj na start od admina…</p>`);
+  }
+  function renderQ(d){
+    cur = d; const pk = d.picked;
+    setP(`
+      <div class="qhead" style="margin:0"><span class="pill">Pytanie ${d.n} z ${d.total}</span><span class="pill">⭐ ${d.score}</span></div>
+      <h2 class="pq">${esc(d.text)}</h2>
+      <div class="plist">${d.answers.map((a,i) => `
+        <button class="pans ${pk==null?'':pk===i?'sel':'dim'}" style="--c:${col(i)}" data-act="pick" data-i="${i}" ${pk!=null?'disabled':''}>
+          <b>${L[i]}</b><span>${esc(a)}</span></button>`).join('')}</div>
+      ${pk!=null ? '<p class="center muted">Odpowiedź wysłana. Czekamy na resztę…</p>' : ''}`);
+  }
+  function renderR(d){
+    const none = d.picked == null;
+    setP(`
+      <div class="verdict">${none ? '⏱️' : d.ok ? '✅' : '❌'}</div>
+      <h2 class="res-title">${none ? 'Brak odpowiedzi' : d.ok ? 'Dobrze! +1 punkt' : 'Niestety nie'}</h2>
+      ${d.ok ? '' : `<div class="stat"><div class="muted small">Poprawna odpowiedź</div><div style="font-size:1.3rem;font-weight:600">${esc(d.correctText)}</div></div>`}
+      <div class="stat">Masz <b>${d.score}</b> pkt · miejsce <b>${d.rank}</b> z ${d.count}</div>
+      <p class="center muted">Czekaj na następne pytanie…</p>`);
+  }
+  function renderEnd(d){
+    setP(`
+      <div class="verdict">${d.rank <= 3 ? medal(d.rank) : '🎉'}</div>
+      <h2 class="res-title">Koniec gry!</h2>
+      <div class="stat">Twój wynik: <b>${d.score}</b> pkt · miejsce <b>${d.rank}</b> z ${d.count}</div>
+      <ol class="board" style="margin:0">${d.board.map(b => `<li class="${b.nick===nick?'me':''}"><span class="r">${medal(b.rank)}</span><span class="n">${esc(b.nick)}</span><span class="s">${b.score}</span></li>`).join('')}</ol>
+      <p class="center muted">Admin może uruchomić kolejną rundę.</p>`);
+  }
+
+  body.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'join') startJoin();
+    if (b.dataset.act === 'pick' && conn && conn.open && cur && cur.picked == null){
+      const i = +b.dataset.i; conn.send({ t:'a', i }); cur.picked = i; renderQ(cur);
+    }
+  });
+  body.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'nick') startJoin(); });
+  renderJoin();
+}
+</script>
+</body>
+</html>
